@@ -14,7 +14,7 @@ class MyWindow : Gtk.Window {
 class Hello {
     static void Main() {
         Application.Init();
-        MyWindow w = new MyWindow();
+        MyWindow w = new();
         w.ShowAll();
         Application.Run();
     }
