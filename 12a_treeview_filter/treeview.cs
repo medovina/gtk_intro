@@ -1,6 +1,5 @@
 ﻿using Gdk;
 using Gtk;
-using Key = Gdk.Key;
 
 class Movie {
     public int year;
@@ -16,13 +15,17 @@ class MyWindow : Gtk.Window {
     List<Movie> movies = new List<Movie>();
 
     ListStore store = new ListStore(typeof(int), typeof(string), typeof(string));
+    TreeModelFilter filter;
     TreeView tree_view;
+    SearchEntry entry;
 
     public MyWindow() : base("movies") {
         read_movies();
         fill();
 
-        tree_view = new TreeView(store);
+        filter = new TreeModelFilter(store, null);
+        tree_view = new TreeView(filter);
+        
         string[] fields = { "year", "title", "director" };
         for (int i = 0 ; i < 3 ; ++i) {
             TreeViewColumn c = new TreeViewColumn(fields[i], new CellRendererText(), "text", i);
@@ -32,11 +35,34 @@ class MyWindow : Gtk.Window {
         
         ScrolledWindow scrolled = new ScrolledWindow();
         scrolled.Add(tree_view);
-        Add(scrolled);
+
+        entry = new SearchEntry();
+        entry.SearchChanged += on_search_changed;
+        entry.Activated += on_activate;
+        filter.VisibleFunc = is_row_visible;
+
+        Box vbox = new Box(Orientation.Vertical, 0);
+        vbox.PackStart(scrolled, true, true, 0);
+        vbox.Add(entry);
+        Add(vbox);
 
         tree_view.CursorChanged += on_cursor_changed;
 
         Resize(600, 400);
+    }
+
+    bool is_row_visible(ITreeModel model, TreeIter iter) {
+        string s = entry.Text;
+        string title = (string) store.GetValue(iter, 1);
+        return title.Contains(s, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void on_search_changed(object? sender, EventArgs e) {
+        filter.Refilter();
+    }
+
+    private void on_activate(object? sender, EventArgs e) {
+        Console.WriteLine("activate");
     }
 
     void read_movies() {
@@ -61,30 +87,12 @@ class MyWindow : Gtk.Window {
     }
 
     void on_cursor_changed(object? sender, EventArgs args) {
-        // Retrieve the selected movie title from the ListStore.
-        if (tree_view.Selection.GetSelected(out TreeIter iter)) {
-            string title = (string) store.GetValue(iter, 1);
-            Console.WriteLine($"selected movie: {title}");
-        }
-
-        // Alternative: retrieve the selected title from the List of Movie objects.
         int i = selected();
         if (i >= 0) {
             Console.WriteLine($"selected movie: {movies[i].title}");
         }
     }
 
-    protected override bool OnKeyPressEvent(EventKey e) {
-        if (e.Key == Key.Delete) {
-            int i = selected();
-            if (i >= 0) {
-                movies.RemoveAt(i);
-                fill();
-            }
-        }
-        return true;
-    }
-    
     protected override bool OnDeleteEvent(Event e) {
         Application.Quit();
         return true;
